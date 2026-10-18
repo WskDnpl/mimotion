@@ -31,32 +31,6 @@ function inspect_next {
   echo "next exec time: UTC($next_exec_hour:$cron_minute) 北京时间($(((next_exec_hour + 8) % 24)):$cron_minute)"
 }
 
-function hours_except_now {
-  cron_hours=$1
-  hour=$(TZ=UTC date '+%H')
-  hour=$((10#$hour))
-  except_current_hours=$(echo "$cron_hours" | awk -v hour="$hour" -F ',' '{
-    for (i=1;i<=NF;i++) {
-      if ($i!=hour) {
-        print $i
-      }
-    }
-  }')
-  result=""
-  while IFS= read -r line; do
-    if [ -z "$result" ]; then
-      result="$line"
-    else
-      result="$result,$line"
-    fi
-  done <<< "$except_current_hours"
-  if test -z "$result"; then
-    # 只有一个小时，则直接返回当前值
-    result=$cron_hours
-  fi
-  echo "$result"
-}
-
 function convert_utc_to_shanghai {
   local cron_str=$1
   echo "UTC时间: ${cron_str}"
@@ -97,7 +71,8 @@ function persist_execute_log {
   current_cron=$(< .github/workflows/run.yml grep cron|awk '{print substr($0, index($0,$3))}')
   cron_hours=$(inspect_hours "$current_cron")
   if test -n "$new_cron_hours"; then
-    cron_hours=$(hours_except_now "$new_cron_hours")
+    # 方案A：固定使用 CRON_HOURS 的小时列表，不再排除当前小时，避免触发点被逐步削减
+    cron_hours="$new_cron_hours"
   fi
   "${sed_prefix[@]}" -E "s/(- cron: ')[0-9]+( [^[:space:]]+ \* \* \*')/\1$((RANDOM % 59)) ${cron_hours} * * *'/g" .github/workflows/run.yml
   current_cron=$(< .github/workflows/run.yml grep cron|awk '{print substr($0, index($0,$3))}')
@@ -108,4 +83,3 @@ function persist_execute_log {
   } >> cron_change_time
 
 }
-
