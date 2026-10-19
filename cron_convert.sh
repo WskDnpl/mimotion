@@ -71,10 +71,10 @@ function persist_execute_log {
   current_cron=$(< .github/workflows/run.yml grep cron|awk '{print substr($0, index($0,$3))}')
   cron_hours=$(inspect_hours "$current_cron")
   if test -n "$new_cron_hours"; then
-    # 方案A：固定使用 CRON_HOURS 的小时列表，不再排除当前小时，避免触发点被逐步削减
+    # 固定使用 CRON_HOURS 的小时列表，分钟固定为整点 00，不再随机
     cron_hours="$new_cron_hours"
   fi
-  "${sed_prefix[@]}" -E "s/(- cron: ')[0-9]+( [^[:space:]]+ \* \* \*')/\1$((RANDOM % 59)) ${cron_hours} * * *'/g" .github/workflows/run.yml
+  "${sed_prefix[@]}" -E "s/(- cron: ')[0-9]+( [^[:space:]]+ \* \* \*')/\100 ${cron_hours} * * *'/g" .github/workflows/run.yml
   current_cron=$(< .github/workflows/run.yml grep cron|awk '{print substr($0, index($0,$3))}')
   {
     echo "next cron:"
